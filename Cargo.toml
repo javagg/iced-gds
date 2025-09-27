@@ -1,0 +1,12 @@
+[package]
+name = "gds_web"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+iced = { version = "0.13", features = ["debug","wgpu", "canvas", "image", "advanced"] }
+
+libreda-db = "0.0.12"
+libreda-oasis = "0.0.5"
+libreda-lefdef = "0.0.5"
+iron-shapes = "0.1.1"
