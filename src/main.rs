@@ -108,7 +108,7 @@ impl App {
     fn view(&self) -> Element<Message> {
         let content = column![
             circle(self.radius),//.width(Length::fill).height(Length::fill),
-            Viewer::new(),
+            Viewer::new("t10.gds"),
             text!("Radius: {:.2}", self.radius),
             slider(1.0..=100.0, self.radius, Message::RadiusChanged).step(0.01),
         ]

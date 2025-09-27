@@ -1,3 +1,5 @@
+use std::fs::File;
+
 use iced::{
     Color, Element, Size,
     advanced::{
@@ -7,11 +9,23 @@ use iced::{
     },
     border, mouse,
 };
+// use libreda_db::{self as db, chip::Chip};
+use libreda_db::prelude::*;
+use libreda_oasis::{
+    LayoutStreamReader,
+    OASISStreamReader,
+};
 
 pub struct Viewer {}
 
 impl Viewer {
-    pub fn new() -> Self {
+    pub fn new(filename: &str) -> Self {
+        let mut f = File::open(filename).unwrap();
+        let mut layout = Chip::new();
+        let mut reader = OASISStreamReader::new();
+        let result = reader.read_layout(&mut f, &mut layout);
+        // layout.bounding_box(cell)
+        // layout.shape_geometry(shape_id)
         Self {}
     }
 }

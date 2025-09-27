@@ -1215,6 +1215,7 @@ dependencies = [
  "libreda-db",
  "libreda-lefdef",
  "libreda-oasis",
+ "libreda-splay",
 ]
 
 [[package]]
