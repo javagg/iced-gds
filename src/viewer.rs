@@ -1,32 +1,27 @@
-use std::fs::File;
-
 use iced::{
-    Color, Element, Size,
+    Color, Element, Length, Size,
     advanced::{
         Layout, Widget,
-        graphics::{self, geometry},
-        layout, renderer, widget,
+        graphics::{self, geometry}, layout, renderer, widget,
     },
     border, mouse,
 };
-// use libreda_db::{self as db, chip::Chip};
+use std::sync::{Arc, Mutex};
 use libreda_db::prelude::*;
-use libreda_oasis::{
-    LayoutStreamReader,
-    OASISStreamReader,
-};
 
-pub struct Viewer {}
+pub struct Viewer {
+    filename: Option<String>,
+    parsed_chip: Arc<Mutex<Option<Chip>>>,
+    parse_error: Arc<Mutex<Option<String>>>,
+}
 
 impl Viewer {
-    pub fn new(filename: &str) -> Self {
-        let mut f = File::open(filename).unwrap();
-        let mut layout = Chip::new();
-        let mut reader = OASISStreamReader::new();
-        let result = reader.read_layout(&mut f, &mut layout);
-        // layout.bounding_box(cell)
-        // layout.shape_geometry(shape_id)
-        Self {}
+    pub fn new(
+        filename: Option<String>,
+        parsed_chip: Arc<Mutex<Option<Chip>>>,
+        parse_error: Arc<Mutex<Option<String>>>,
+    ) -> Self {
+        Self { filename, parsed_chip, parse_error }
     }
 }
 
@@ -35,36 +30,67 @@ where
     Renderer: geometry::Renderer,
 {
     fn size(&self) -> iced::Size<iced::Length> {
-        todo!()
+        // Use shrink so layout() decides the pixel size.
+        Size { width: Length::Shrink, height: Length::Shrink }
     }
 
     fn layout(
         &self,
-        tree: &mut widget::Tree,
-        renderer: &Renderer,
-        limits: &layout::Limits,
+        _tree: &mut widget::Tree,
+        _renderer: &Renderer,
+        _limits: &layout::Limits,
     ) -> layout::Node {
         layout::Node::new(Size::new(400.0, 400.0))
     }
 
     fn draw(
         &self,
-        tree: &widget::Tree,
-        renderer: &mut Renderer,
-        theme: &Theme,
-        style: &renderer::Style,
+        _tree: &widget::Tree,
+        _renderer: &mut Renderer,
+        _theme: &Theme,
+        _style: &renderer::Style,
         layout: Layout<'_>,
-        cursor: mouse::Cursor,
-        viewport: &iced::Rectangle,
+        _cursor: mouse::Cursor,
+        _viewport: &iced::Rectangle,
     ) {
-        renderer.fill_quad(
+        // Draw a simple background and a filename text if present.
+        _renderer.fill_quad(
             renderer::Quad {
                 bounds: layout.bounds(),
-                border: border::rounded(200.0),
+                border: border::rounded(8.0),
                 ..renderer::Quad::default()
             },
-            Color::BLACK,
+            Color::from_rgb(0.95, 0.95, 0.95),
         );
+
+        // If a filename was provided, indicate parse status by reading the shared state.
+        if self.filename.is_some() {
+            let pc = self.parsed_chip.lock().unwrap();
+            let pe = self.parse_error.lock().unwrap();
+
+            if pc.is_some() {
+                // parsed successfully: slightly green tint
+                _renderer.fill_quad(
+                    renderer::Quad {
+                        bounds: layout.bounds(),
+                        ..renderer::Quad::default()
+                    },
+                    Color::from_rgb(0.90, 0.98, 0.90),
+                );
+            } else if pe.is_some() {
+                // parse error: light red tint
+                _renderer.fill_quad(
+                    renderer::Quad {
+                        bounds: layout.bounds(),
+                        ..renderer::Quad::default()
+                    },
+                    Color::from_rgb(0.98, 0.90, 0.90),
+                );
+            }
+            // drop locks
+            drop(pc);
+            drop(pe);
+        }
     }
 }
 

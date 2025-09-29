@@ -74,6 +74,10 @@ mod circle {
 
 mod viewer;
 use viewer::Viewer;
+use iced::widget::{button, row};
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
+use libreda_db::prelude::*;
 
 use circle::circle;
 use iced::widget::{center, column, slider, text};
@@ -85,16 +89,27 @@ pub fn main() -> iced::Result {
 
 struct App {
     radius: f32,
+    opened: Option<PathBuf>,
+    // Shared parsed chip and parse error set by background thread
+    parsed_chip: Arc<Mutex<Option<libreda_db::prelude::Chip>>>,
+    parse_error: Arc<Mutex<Option<String>>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 enum Message {
     RadiusChanged(f32),
+    OpenFile,
+    FileChosen(Option<PathBuf>),
 }
 
 impl App {
     fn new() -> Self {
-        Self { radius: 50.0 }
+        Self {
+            radius: 50.0,
+            opened: None,
+            parsed_chip: Arc::new(Mutex::new(None)),
+            parse_error: Arc::new(Mutex::new(None)),
+        }
     }
 
     fn update(&mut self, message: Message) {
@@ -102,13 +117,93 @@ impl App {
             Message::RadiusChanged(radius) => {
                 self.radius = radius;
             }
+            Message::OpenFile => {
+                // On native builds open a native dialog. On web builds, we can't use rfd;
+                // for now set an explanatory parse_error so the UI can show guidance.
+                #[cfg(feature = "native")]
+                let file = rfd::FileDialog::new()
+                    .add_filter("GDS or OASIS", &["gds", "oas"])
+                    .pick_file();
+
+                #[cfg(not(feature = "native"))]
+                let file: Option<std::path::PathBuf> = None;
+
+                // send chosen file back into update via message
+                let chosen = file.map(|p| p.into());
+                // directly assign since we are already in update
+                self.opened = chosen.clone();
+
+                // reset previous parse state
+                {
+                    let mut pc = self.parsed_chip.lock().unwrap();
+                    *pc = None;
+                }
+                {
+                    let mut pe = self.parse_error.lock().unwrap();
+                    *pe = None;
+                }
+
+                #[cfg(not(feature = "native"))]
+                {
+                    let mut pe = self.parse_error.lock().unwrap();
+                    *pe = Some("Use browser file input to open OASIS/GDS on web build".to_string());
+                }
+
+                // spawn background thread to parse the chosen file (native only)
+                #[cfg(feature = "native")]
+                {
+                    if let Some(path) = chosen {
+                        let parsed_chip = Arc::clone(&self.parsed_chip);
+                        let parse_error = Arc::clone(&self.parse_error);
+                        std::thread::spawn(move || {
+                            // parse in background
+                            match std::fs::File::open(&path) {
+                                Ok(mut f) => {
+                                    let mut layout = libreda_db::prelude::Chip::new();
+                                    let reader = libreda_oasis::OASISStreamReader::new();
+                                    match reader.read_layout(&mut f, &mut layout) {
+                                        Ok(_) => {
+                                            let mut pc = parsed_chip.lock().unwrap();
+                                            *pc = Some(layout);
+                                        }
+                                        Err(e) => {
+                                            let mut pe = parse_error.lock().unwrap();
+                                            *pe = Some(format!("parse error: {:?}", e));
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    let mut pe = parse_error.lock().unwrap();
+                                    *pe = Some(format!("open error: {}", e));
+                                }
+                            }
+                        });
+                    }
+                }
+            }
+            Message::FileChosen(opt) => {
+                self.opened = opt;
+            }
         }
     }
 
     fn view(&self) -> Element<Message> {
+        let open_button = button("Open GDS/OASIS").on_press(Message::OpenFile);
+
+        let filename_text = match &self.opened {
+            Some(p) => text!("Opened: {}", p.to_string_lossy()),
+            None => text!("No file opened"),
+        };
+
         let content = column![
             circle(self.radius),//.width(Length::fill).height(Length::fill),
-            Viewer::new("t10.gds"),
+            row![open_button, filename_text].spacing(10),
+            // pass optional filename as &str
+            Viewer::new(
+                self.opened.as_ref().map(|p| p.to_string_lossy().into_owned()),
+                Arc::clone(&self.parsed_chip),
+                Arc::clone(&self.parse_error),
+            ),
             text!("Radius: {:.2}", self.radius),
             slider(1.0..=100.0, self.radius, Message::RadiusChanged).step(0.01),
         ]
