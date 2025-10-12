@@ -3,20 +3,19 @@ name = "gds_web"
 version = "0.1.0"
 edition = "2024"
 
+
 [dependencies]
 iced = { version = "0.13", features = ["debug","wgpu", "canvas", "image", "advanced"] }
-libreda-db = "0.0.12"
-libreda-oasis = "0.0.5"
-libreda-lefdef = "0.0.5"
-iron-shapes = "0.1.1"
-# Native file dialog for picking GDS/OASIS files (desktop only)
-rfd = { version = "0.12", optional = true }
-#libreda-splay = "0.1.1"
+libreda-core = { path = "deps/libreda-rs-workspace/libreda-core" }
+libreda-db = { path = "deps/libreda-rs-workspace/libreda-db" }
+libreda-oasis = { path = "deps/libreda-rs-workspace/libreda-oasis" }
+libreda-lefdef = { path = "deps/libreda-rs-workspace/libreda-lefdef" }
+libreda-stream-parser = { path = "deps/libreda-rs-workspace/stream-parser" }
+iron-shapes = { path = "deps/libreda-rs-workspace/iron-shapes" }
+iron-shapes-algorithms = { path = "deps/libreda-rs-workspace/iron-shapes-algorithms" }
+iron-shapes-booleanop = { path = "deps/libreda-rs-workspace/iron-shapes-booleanop" }
+rfd = "0.15"
 portrait = "0.3.0"
 petgraph = "0.6"
 fnv = "1.0"
 rstar = "0.12"
-
-
-[features]
-native = ["rfd"]

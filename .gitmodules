@@ -1,0 +1,3 @@
+[submodule "deps/libreda-rs-workspace"]
+	path = deps/libreda-rs-workspace
+	url = https://codeberg.org/LibrEDA/libreda-rs-workspace.git
